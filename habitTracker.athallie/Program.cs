@@ -56,6 +56,26 @@ while (true)
 
     Console.Write("Your choice: ");
     var userChoice = Console.ReadLine();
+    Console.WriteLine();
+
+    Func<string, bool> checkDateTime = (date) =>
+    {
+        DateTime dateTime;
+        if (DateTime.TryParse(date, out dateTime)) { return true; }
+        return false;
+    };
+    Func<string, bool> checkAmount = (amount) =>
+    {
+        double am;
+        if (Double.TryParse(amount, out am)) { return true; }
+        return false;
+    };
+    Func<string, bool> checkId = (id) =>
+    {
+        int idOut;
+        if (int.TryParse(id, out idOut)) { return true; }
+        return false;
+    };
 
     //Input Processing
     switch (userChoice)
@@ -63,101 +83,75 @@ while (true)
         case "0": System.Environment.Exit(0); break;
         case "1": await executeQuery(readAllRows("HABITS"), "READALL"); break;
         case "2":
-            DateTime dateTime;
-            while (true)
-            {
-                Console.Write("\nDate: ");
-                string date = Console.ReadLine();
-                if (DateTime.TryParse(date, out dateTime)) {
-                    break;
-                } else
-                {
-                    Console.WriteLine("\nInvalid date. Please use the format MM/DD/YYYY.");
-                }
-            }
+            string date = getUserInput(
+                "Date: ",
+                "Invalid date. Please use the format MM/DD/YYYY.",
+                checkDateTime
+            );
 
-            double am;
-            while (true)
-            {
-                Console.Write("Amount: ");
-                string amount = Console.ReadLine();
-                if (Double.TryParse(amount, out am)) {
-                    break;
-                } else
-                {
-                    Console.WriteLine("""
-                        \nInvalid amount. Please use valid numbers and dot '.' as separator if necessary.
-                        """);
-                }
-            }
-            await executeQuery(insert("HABITS", dateTime.ToShortDateString(), am), "INSERT");
+            string amount = getUserInput(
+                "Amount: ",
+                "Invalid amount. Please use valid numbers and dot '.' as separator if necessary.",
+                checkAmount
+            );
+            await executeQuery(insert("HABITS", date, Double.Parse(amount)), "INSERT");
             break;
         case "3":
-            int id;
-            while (true)
-            {
-                Console.Write("\nID of Record: ");
-                string idIn = Console.ReadLine();
-                if (Int32.TryParse(idIn, out id)) {
-                    await executeQuery(deleteRow("HABITS", id), "DELETE");
-                    break;
-                } else
-                {
-                    Console.WriteLine("Id invalid. Please input a valid number.");
-                }
-            }
+            string id = getUserInput(
+                "ID of Record: ",
+                "Id invalid. Please input a valid number.",
+                checkId
+            );
+            await executeQuery(deleteRow("HABITS", Int32.Parse(id)), "DELETE");
             break;
         case "4":
-            while (true)
+            while(true)
             {
-                Console.Write("\nID of Record: ");
-                string idIn = Console.ReadLine();
-                if (Int32.TryParse(idIn, out id))
+                id = getUserInput(
+                    "ID of Record: ",
+                    "Id invalid. Please input a valid number.",
+                    checkId
+                );
+                var rowExist = await executeQuery(selectRow("HABITS", Int32.Parse(id)), "CHECK");
+                if (!rowExist)
                 {
-                    var rowExist = await executeQuery(selectRow("HABITS", id), "CHECK");
-                    if (!rowExist)
-                    {
-                        Console.WriteLine($"Row with ID {id} not found. Please input an existing ID.");
-                        continue;
-                    }
-                    break;
+                    Console.WriteLine($"Row with ID {id} not found. Please input an existing ID.");
+                    continue;
                 }
-                else
-                {
-                    Console.WriteLine("Id invalid. Please input a valid number.");
-                }
+                break;
             }
-            while (true)
-            {
-                Console.Write("Date: ");
-                string date = Console.ReadLine();
-                if (DateTime.TryParse(date, out dateTime))
-                {
-                    break;
-                }
-                else
-                {
-                    Console.WriteLine("\nInvalid date. Please use the format MM/DD/YYYY.");
-                }
-            }
-            while (true)
-            {
-                Console.Write("Amount: ");
-                string amount = Console.ReadLine();
-                if (Double.TryParse(amount, out am))
-                {
-                    break;
-                }
-                else
-                {
-                    Console.WriteLine("""
-                        \nInvalid amount. Please use valid numbers and dot '.' as separator if necessary.
-                        """);
-                }
-            }
-            await executeQuery(updateRow("HABITS", id, dateTime.ToShortDateString(), am), "UPDATE");
+            date = getUserInput(
+                "Date: ",
+                "Invalid date. Please use the format MM/DD/YYYY.",
+                checkDateTime
+            );
+            amount = getUserInput(
+                "Amount: ",
+                "Invalid amount. Please use valid numbers and dot '.' as separator if necessary.",
+                checkAmount
+            );
+            await executeQuery(updateRow("HABITS", Int32.Parse(id), date, Double.Parse(amount)), "UPDATE");
             break;
         default: Console.WriteLine("Invalid input. Please only type one of the numbers in the menu.\n"); continue;
+    }
+}
+
+
+string getUserInput(string prompt, string errorPrompt, Func<string, bool> validation)
+{
+    while (true)
+    {
+        Console.Write(prompt);
+        string input = Console.ReadLine();
+        bool isValid = validation(input);
+        if (isValid)
+        {
+            return input;
+        }
+        else
+        {
+            Console.WriteLine($"\n{errorPrompt}\n");
+        }
     }
 }
 
@@ -172,10 +166,7 @@ async Task<bool> executeQuery(string query, string queryType)
 
     try
     {
-        int rowsAffected = await command.ExecuteNonQueryAsync();
         await using var reader = await command.ExecuteReaderAsync();
-        //Print prompt IF query was succesfully executed.
-        //TODO: Check if query execution is a success.
         Console.WriteLine();
         switch (queryType.ToLower())
         {
@@ -186,12 +177,15 @@ async Task<bool> executeQuery(string query, string queryType)
                 }
                 break;
             case "update": Console.WriteLine("Record updated."); break;
-            case "delete": 
+            case "delete":
+                int rowsAffected = await command.ExecuteNonQueryAsync();
                 if (rowsAffected == 0)
                 {
                     Console.WriteLine("ID not found. No records deleted.");
+                } else
+                {
+                    Console.WriteLine("Record deleted.");
                 }
-                Console.WriteLine("Record deleted."); 
                 break;
             case "insert": Console.WriteLine("Record added."); break;
             case "readall":
@@ -229,7 +223,8 @@ async Task<bool> executeQuery(string query, string queryType)
         int errorCode = ex.SqliteErrorCode;
         string message = ex.Message;
         Console.WriteLine(message);
-    } finally
+    } 
+    finally
     {
         await connection.CloseAsync();
     }
