@@ -88,15 +88,19 @@ async void executeQuery(string query, string queryType)
         case "delete": Console.WriteLine("Record deleted."); break;
         case "insert": Console.WriteLine("Record added."); break;
         case "read":
-            Console.WriteLine("""
-            ID  |   DATE          |   AMOUNT
-            """);
-
-            while (await reader.ReadAsync())
+            if (reader.HasRows)
             {
-                Console.WriteLine($"""
-            {reader["ID"]}   |   {reader["DATE"]}     |   {reader["AMOUNT"]}
-            """);
+                Console.WriteLine("""
+                    ID  |   DATE          |   AMOUNT
+                    """);
+                while (await reader.ReadAsync())
+                {
+                    Console.WriteLine($"""
+                        {reader["ID"]}   |   {reader["DATE"]}     |   {reader["AMOUNT"]}
+                    """);
+                }
+            } else {
+                Console.WriteLine("No records found.");
             }
 
             break;
