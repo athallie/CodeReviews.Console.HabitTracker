@@ -34,7 +34,7 @@ Func<string, string, string, double, string> updateQuery = (table, id, date, amo
         WHERE ID = {id};
     """;
 };
-Func<string, string, string> deleteQuery = (table, id) => $"DELETE FROM {table} WHERE ID = {id};";
+Func<string, int, string> deleteQuery = (table, id) => $"DELETE FROM {table} WHERE ID = {id};";
 
 //Main Program Loop
 while (true)
@@ -98,7 +98,21 @@ while (true)
                 executeQuery(insertQuery("HABITS", dateTime.ToShortDateString(), am), "INSERT");
             }
             break;
-        case "3": executeQuery(deleteQuery("HABITS", "1"), "DELETE"); break;
+        case "3":
+            int id;
+            while (true)
+            {
+                Console.Write("\nID of Record: ");
+                string idIn = Console.ReadLine();
+                if (Int32.TryParse(idIn, out id)) {
+                    executeQuery(deleteQuery("HABITS", id), "DELETE");
+                    break;
+                } else
+                {
+                    Console.WriteLine("Id invalid. Please input a valid number.");
+                }
+            }
+            break;
         case "4": executeQuery(updateQuery("HABITS", "3", "1/21/2025", 10), "UPDATE"); break;
         default: Console.WriteLine("Invalid input. Please only type one of the numbers in the menu.\n"); continue;
     }
@@ -115,13 +129,20 @@ async void executeQuery(string query, string queryType)
 
     try
     {
+        int rowsAffected = await command.ExecuteNonQueryAsync();
         await using var reader = await command.ExecuteReaderAsync();
         //Print prompt IF query was succesfully executed.
         //TODO: Check if query execution is a success.
         switch (queryType.ToLower())
         {
             case "update": Console.WriteLine("Record updated."); break;
-            case "delete": Console.WriteLine("Record deleted."); break;
+            case "delete": 
+                if (rowsAffected == 0)
+                {
+                    Console.WriteLine("ID not found. No records deleted.");
+                }
+                Console.WriteLine("Record deleted."); 
+                break;
             case "insert": Console.WriteLine("Record added."); break;
             case "read":
                 if (reader.HasRows)
@@ -147,10 +168,7 @@ async void executeQuery(string query, string queryType)
     catch (SqliteException ex) {
         int errorCode = ex.SqliteErrorCode;
         string message = ex.Message;
-        switch(errorCode)
-        {
-            case 1: Console.WriteLine(message); break;
-        }
+        Console.WriteLine(message);
     } finally
     {
         await connection.CloseAsync();
