@@ -41,6 +41,7 @@ while (true)
 {
     //Menu
     Console.WriteLine("""
+    
     [Water Logger]
 
     What would you like to do?
@@ -63,7 +64,40 @@ while (true)
     {
         case "0": System.Environment.Exit(0); break;
         case "1": executeQuery(readAllQuery("HABITS"), "READ"); break;
-        case "2": executeQuery(insertQuery("HABITS", "1/20/2025", 1), "INSERT"); break;
+        case "2":
+            DateTime dateTime;
+            while (true)
+            {
+                Console.Write("\nDate: ");
+                string date = Console.ReadLine();
+                if (DateTime.TryParse(date, out dateTime)) {
+                    break;
+                } else
+                {
+                    Console.WriteLine("\nInvalid date. Please use the format MM/DD/YYYY.");
+                }
+            }
+
+            double am;
+            while (true)
+            {
+                Console.Write("\nAmount: ");
+                string amount = Console.ReadLine();
+                if (Double.TryParse(amount, out am)) {
+                    break;
+                } else
+                {
+                    Console.WriteLine("""
+                        \nInvalid amount. Please use valid numbers and dot '.' as separator if necessary.
+                        """);
+                }
+            }
+
+            if (dateTime != DateTime.MinValue && am != 0.0D)
+            {
+                executeQuery(insertQuery("HABITS", dateTime.ToShortDateString(), am), "INSERT");
+            }
+            break;
         case "3": executeQuery(deleteQuery("HABITS", "1"), "DELETE"); break;
         case "4": executeQuery(updateQuery("HABITS", "3", "1/21/2025", 10), "UPDATE"); break;
         default: Console.WriteLine("Invalid input. Please only type one of the numbers in the menu.\n"); continue;
@@ -78,33 +112,48 @@ async void executeQuery(string query, string queryType)
 
     //Run Query
     await using var command = new SqliteCommand(query, connection);
-    await using var reader = await command.ExecuteReaderAsync();
 
-    //Print prompt IF query was succesfully executed.
-    //TODO: Check if query execution is a success.
-    switch(queryType.ToLower())
+    try
     {
-        case "update": Console.WriteLine("Record updated."); break;
-        case "delete": Console.WriteLine("Record deleted."); break;
-        case "insert": Console.WriteLine("Record added."); break;
-        case "read":
-            if (reader.HasRows)
-            {
-                Console.WriteLine("""
+        await using var reader = await command.ExecuteReaderAsync();
+        //Print prompt IF query was succesfully executed.
+        //TODO: Check if query execution is a success.
+        switch (queryType.ToLower())
+        {
+            case "update": Console.WriteLine("Record updated."); break;
+            case "delete": Console.WriteLine("Record deleted."); break;
+            case "insert": Console.WriteLine("Record added."); break;
+            case "read":
+                if (reader.HasRows)
+                {
+                    Console.WriteLine("""
                     ID  |   DATE          |   AMOUNT
                     """);
-                while (await reader.ReadAsync())
-                {
-                    Console.WriteLine($"""
+                    while (await reader.ReadAsync())
+                    {
+                        Console.WriteLine($"""
                         {reader["ID"]}   |   {reader["DATE"]}     |   {reader["AMOUNT"]}
                     """);
+                    }
                 }
-            } else {
-                Console.WriteLine("No records found.");
-            }
+                else
+                {
+                    Console.WriteLine("No records found.");
+                }
 
-            break;
+                break;
+        }
     }
-    await connection.CloseAsync();
+    catch (SqliteException ex) {
+        int errorCode = ex.SqliteErrorCode;
+        string message = ex.Message;
+        switch(errorCode)
+        {
+            case 1: Console.WriteLine(message); break;
+        }
+    } finally
+    {
+        await connection.CloseAsync();
+    }
 }
 
