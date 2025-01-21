@@ -17,15 +17,15 @@ await using var reader = await command.ExecuteReaderAsync();
 await connection.CloseAsync();
 
 //Query Templates
-Func<string, string> readAllQuery = (table) => $"SELECT * FROM {table};";
-Func<string, string, double, string> insertQuery = (table, date, amount) =>
+Func<string, string> readAllRows = (table) => $"SELECT * FROM {table};";
+Func<string, string, double, string> insert = (table, date, amount) =>
 {
     return $"""
         INSERT INTO {table}(DATE, AMOUNT)
         VALUES("{date}", {amount});
     """;
 };
-Func<string, string, string, double, string> updateQuery = (table, id, date, amount) =>
+Func<string, int, string, double, string> updateRow = (table, id, date, amount) =>
 {
     return $"""
         UPDATE {table}
@@ -34,7 +34,8 @@ Func<string, string, string, double, string> updateQuery = (table, id, date, amo
         WHERE ID = {id};
     """;
 };
-Func<string, int, string> deleteQuery = (table, id) => $"DELETE FROM {table} WHERE ID = {id};";
+Func<string, int, string> deleteRow = (table, id) => $"DELETE FROM {table} WHERE ID = {id};";
+Func<string, int, string> selectRow = (table, id) => $"SELECT * FROM {table} WHERE id = {id};";
 
 //Main Program Loop
 while (true)
@@ -63,7 +64,7 @@ while (true)
     switch (userChoice)
     {
         case "0": System.Environment.Exit(0); break;
-        case "1": executeQuery(readAllQuery("HABITS"), "READ"); break;
+        case "1": await executeQuery(readAllRows("HABITS"), "READALL"); break;
         case "2":
             DateTime dateTime;
             while (true)
@@ -95,7 +96,7 @@ while (true)
 
             if (dateTime != DateTime.MinValue && am != 0.0D)
             {
-                executeQuery(insertQuery("HABITS", dateTime.ToShortDateString(), am), "INSERT");
+                await executeQuery(insert("HABITS", dateTime.ToShortDateString(), am), "INSERT");
             }
             break;
         case "3":
@@ -105,7 +106,7 @@ while (true)
                 Console.Write("\nID of Record: ");
                 string idIn = Console.ReadLine();
                 if (Int32.TryParse(idIn, out id)) {
-                    executeQuery(deleteQuery("HABITS", id), "DELETE");
+                    await executeQuery(deleteRow("HABITS", id), "DELETE");
                     break;
                 } else
                 {
@@ -113,12 +114,61 @@ while (true)
                 }
             }
             break;
-        case "4": executeQuery(updateQuery("HABITS", "3", "1/21/2025", 10), "UPDATE"); break;
+        case "4":
+            while (true)
+            {
+                Console.Write("\nID of Record: ");
+                string idIn = Console.ReadLine();
+                if (Int32.TryParse(idIn, out id))
+                {
+                    var rowExist = await executeQuery(selectRow("HABITS", id), "CHECK");
+                    if (!rowExist)
+                    {
+                        Console.WriteLine($"Row with ID {id} not found. Please input an existing ID.");
+                        continue;
+                    }
+                    break;
+                }
+                else
+                {
+                    Console.WriteLine("Id invalid. Please input a valid number.");
+                }
+            }
+            while (true)
+            {
+                Console.Write("\nDate: ");
+                string date = Console.ReadLine();
+                if (DateTime.TryParse(date, out dateTime))
+                {
+                    break;
+                }
+                else
+                {
+                    Console.WriteLine("\nInvalid date. Please use the format MM/DD/YYYY.");
+                }
+            }
+            while (true)
+            {
+                Console.Write("\nAmount: ");
+                string amount = Console.ReadLine();
+                if (Double.TryParse(amount, out am))
+                {
+                    break;
+                }
+                else
+                {
+                    Console.WriteLine("""
+                        \nInvalid amount. Please use valid numbers and dot '.' as separator if necessary.
+                        """);
+                }
+            }
+            await executeQuery(updateRow("HABITS", id, dateTime.ToShortDateString(), am), "UPDATE");
+            break;
         default: Console.WriteLine("Invalid input. Please only type one of the numbers in the menu.\n"); continue;
     }
 }
 
-async void executeQuery(string query, string queryType)
+async Task<bool> executeQuery(string query, string queryType)
 {
     await connection.OpenAsync();
 
@@ -135,6 +185,12 @@ async void executeQuery(string query, string queryType)
         //TODO: Check if query execution is a success.
         switch (queryType.ToLower())
         {
+            case "check":
+                if (!reader.HasRows)
+                {
+                    return false;
+                }
+                break;
             case "update": Console.WriteLine("Record updated."); break;
             case "delete": 
                 if (rowsAffected == 0)
@@ -144,7 +200,7 @@ async void executeQuery(string query, string queryType)
                 Console.WriteLine("Record deleted."); 
                 break;
             case "insert": Console.WriteLine("Record added."); break;
-            case "read":
+            case "readall":
                 if (reader.HasRows)
                 {
                     Console.WriteLine("""
@@ -173,5 +229,6 @@ async void executeQuery(string query, string queryType)
     {
         await connection.CloseAsync();
     }
+    return true;
 }
 
