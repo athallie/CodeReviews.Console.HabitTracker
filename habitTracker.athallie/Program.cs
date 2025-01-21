@@ -38,12 +38,11 @@ Func<string, int, string> deleteRow = (table, id) => $"DELETE FROM {table} WHERE
 Func<string, int, string> selectRow = (table, id) => $"SELECT * FROM {table} WHERE id = {id};";
 
 //Main Program Loop
+Console.WriteLine("[Water Logger]");
 while (true)
 {
     //Menu
     Console.WriteLine("""
-    
-    [Water Logger]
 
     What would you like to do?
 
@@ -52,13 +51,11 @@ while (true)
     Type 2 to Insert Record.
     Type 3 to Delete Record.
     Type 4 to Update Record.
-    ------------------------------------
 
     """);
 
     Console.Write("Your choice: ");
     var userChoice = Console.ReadLine();
-    Console.WriteLine();
 
     //Input Processing
     switch (userChoice)
@@ -82,7 +79,7 @@ while (true)
             double am;
             while (true)
             {
-                Console.Write("\nAmount: ");
+                Console.Write("Amount: ");
                 string amount = Console.ReadLine();
                 if (Double.TryParse(amount, out am)) {
                     break;
@@ -93,11 +90,7 @@ while (true)
                         """);
                 }
             }
-
-            if (dateTime != DateTime.MinValue && am != 0.0D)
-            {
-                await executeQuery(insert("HABITS", dateTime.ToShortDateString(), am), "INSERT");
-            }
+            await executeQuery(insert("HABITS", dateTime.ToShortDateString(), am), "INSERT");
             break;
         case "3":
             int id;
@@ -136,7 +129,7 @@ while (true)
             }
             while (true)
             {
-                Console.Write("\nDate: ");
+                Console.Write("Date: ");
                 string date = Console.ReadLine();
                 if (DateTime.TryParse(date, out dateTime))
                 {
@@ -149,7 +142,7 @@ while (true)
             }
             while (true)
             {
-                Console.Write("\nAmount: ");
+                Console.Write("Amount: ");
                 string amount = Console.ReadLine();
                 if (Double.TryParse(amount, out am))
                 {
@@ -183,6 +176,7 @@ async Task<bool> executeQuery(string query, string queryType)
         await using var reader = await command.ExecuteReaderAsync();
         //Print prompt IF query was succesfully executed.
         //TODO: Check if query execution is a success.
+        Console.WriteLine();
         switch (queryType.ToLower())
         {
             case "check":
@@ -203,15 +197,25 @@ async Task<bool> executeQuery(string query, string queryType)
             case "readall":
                 if (reader.HasRows)
                 {
-                    Console.WriteLine("""
-                    ID  |   DATE          |   AMOUNT
-                    """);
+                    Console.WriteLine("".PadLeft(50, '-'));
+                    Console.WriteLine(
+                        $"ID".PadLeft(15) +
+                        "|" +
+                        $"DATE".PadLeft(10) +
+                        "|" +
+                        $"AMOUNT"
+                    );
                     while (await reader.ReadAsync())
                     {
-                        Console.WriteLine($"""
-                        {reader["ID"]}   |   {reader["DATE"]}     |   {reader["AMOUNT"]}
-                    """);
+                        Console.WriteLine(
+                            $"{reader["ID"]}".PadLeft(15) +
+                            "|" +
+                            $"{reader["DATE"]}".PadLeft(10) +
+                            "|" +
+                            $"{reader["AMOUNT"]}"
+                        );
                     }
+                    Console.WriteLine("".PadLeft(50, '-'));
                 }
                 else
                 {
