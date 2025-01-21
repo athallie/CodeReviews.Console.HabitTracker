@@ -16,26 +16,7 @@ await using var reader = await command.ExecuteReaderAsync();
 
 await connection.CloseAsync();
 
-//Menu
-Console.WriteLine("""
-    [Water Logger]
-
-    What would you like to do?
-
-    Type 0 to Close Application.
-    Type 1 to View All Records.
-    Type 2 to Insert Record.
-    Type 3 to Delete Record.
-    Type 4 to Update Record.
-    ------------------------------------
-
-    """);
-
-Console.Write("Your choice: ");
-var userChoice = Console.ReadLine();
-Console.WriteLine();
-
-//Input Processing
+//Query Templates
 Func<string, string> readAllQuery = (table) => $"SELECT * FROM {table};";
 Func<string, string, double, string> insertQuery = (table, date, amount) =>
 {
@@ -55,13 +36,38 @@ Func<string, string, string, double, string> updateQuery = (table, id, date, amo
 };
 Func<string, string, string> deleteQuery = (table, id) => $"DELETE FROM {table} WHERE ID = {id};";
 
-switch(userChoice)
+//Main Program Loop
+while (true)
 {
-    case "0": System.Environment.Exit(0); break;
-    case "1": executeQuery(readAllQuery("HABITS"), "READ"); break;
-    case "2": executeQuery(insertQuery("HABITS", "1/20/2025", 1), "INSERT"); break;
-    case "3": executeQuery(deleteQuery("HABITS", "1"), "DELETE"); break;
-    case "4": executeQuery(updateQuery("HABITS", "3", "1/21/2025", 10), "UPDATE"); break;
+    //Menu
+    Console.WriteLine("""
+    [Water Logger]
+
+    What would you like to do?
+
+    Type 0 to Close Application.
+    Type 1 to View All Records.
+    Type 2 to Insert Record.
+    Type 3 to Delete Record.
+    Type 4 to Update Record.
+    ------------------------------------
+
+    """);
+
+    Console.Write("Your choice: ");
+    var userChoice = Console.ReadLine();
+    Console.WriteLine();
+
+    //Input Processing
+    switch (userChoice)
+    {
+        case "0": System.Environment.Exit(0); break;
+        case "1": executeQuery(readAllQuery("HABITS"), "READ"); break;
+        case "2": executeQuery(insertQuery("HABITS", "1/20/2025", 1), "INSERT"); break;
+        case "3": executeQuery(deleteQuery("HABITS", "1"), "DELETE"); break;
+        case "4": executeQuery(updateQuery("HABITS", "3", "1/21/2025", 10), "UPDATE"); break;
+        default: Console.WriteLine("Invalid input. Please only type one of the numbers in the menu.\n"); continue;
+    }
 }
 
 async void executeQuery(string query, string queryType)
