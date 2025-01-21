@@ -36,72 +36,65 @@ var userChoice = Console.ReadLine();
 Console.WriteLine();
 
 //Input Processing
+Func<string, string> readAllQuery = (table) => $"SELECT * FROM {table};";
+Func<string, string, double, string> insertQuery = (table, date, amount) =>
+{
+    return $"""
+        INSERT INTO {table}(DATE, AMOUNT)
+        VALUES("{date}", {amount});
+    """;
+};
+Func<string, string, string, double, string> updateQuery = (table, id, date, amount) =>
+{
+    return $"""
+        UPDATE {table}
+        SET DATE = "{date}",
+            AMOUNT = {amount}
+        WHERE ID = {id};
+    """;
+};
+Func<string, string, string> deleteQuery = (table, id) => $"DELETE FROM {table} WHERE ID = {id};";
+
 switch(userChoice)
 {
     case "0": System.Environment.Exit(0); break;
-    case "1": ViewAllRecords(); break;
-    case "2": InsertRecord("1/20/2025", 1); break;
-    case "3": DeleteRecord("1"); break;
-    case "4": UpdateRecord("2", "1/21/2025", 10); break;
+    case "1": executeQuery(readAllQuery("HABITS"), "READ"); break;
+    case "2": executeQuery(insertQuery("HABITS", "1/20/2025", 1), "INSERT"); break;
+    case "3": executeQuery(deleteQuery("HABITS", "1"), "DELETE"); break;
+    case "4": executeQuery(updateQuery("HABITS", "3", "1/21/2025", 10), "UPDATE"); break;
 }
 
-async void UpdateRecord(string id, string date, double amount)
+async void executeQuery(string query, string queryType)
 {
     await connection.OpenAsync();
-    await using var command = new SqliteCommand($"""
-        UPDATE HABITS
-        SET DATE = "{date}",
-            AMOUNT = {amount}
-        WHERE ID = {id}
-        """, connection);
-    await using var reader = await command.ExecuteReaderAsync();
-    await connection.CloseAsync();
-    Console.WriteLine($"Record [{id}] updated.");
-}
 
-async void DeleteRecord(string id)
-{
-    await connection.OpenAsync();
-    await using var command = new SqliteCommand($"""
-        DELETE FROM HABITS WHERE ID = {id}
-        """, connection);
-    await using var reader = await command.ExecuteReaderAsync();
-    await connection.CloseAsync();
-    Console.WriteLine($"Record [{id}] deleted.");
-}
+    //TODO: Check query validity
 
-async void InsertRecord(string date, double amount)
-{
-    await connection.OpenAsync();
-    await using var command = new SqliteCommand($"""
-        INSERT INTO HABITS(DATE, AMOUNT)
-        VALUES ("{date}", {amount});
-        """, connection);
-    await using var reader = await command.ExecuteReaderAsync();
-    await connection.CloseAsync();
-    Console.WriteLine($"Record inserted.");
-}
-
-async void ViewAllRecords()
-{
-    await connection.OpenAsync();
-    await using var command = new SqliteCommand("""
-    SELECT *
-    FROM HABITS;
-    """, connection);
+    //Run Query
+    await using var command = new SqliteCommand(query, connection);
     await using var reader = await command.ExecuteReaderAsync();
 
-    Console.WriteLine("""
-        ID  |   DATE          |   AMOUNT
-        """);
-
-    while (await reader.ReadAsync())
+    //Print prompt IF query was succesfully executed.
+    //TODO: Check if query execution is a success.
+    switch(queryType.ToLower())
     {
-        Console.WriteLine($"""
+        case "update": Console.WriteLine("Record updated."); break;
+        case "delete": Console.WriteLine("Record deleted."); break;
+        case "insert": Console.WriteLine("Record added."); break;
+        case "read":
+            Console.WriteLine("""
+            ID  |   DATE          |   AMOUNT
+            """);
+
+            while (await reader.ReadAsync())
+            {
+                Console.WriteLine($"""
             {reader["ID"]}   |   {reader["DATE"]}     |   {reader["AMOUNT"]}
             """);
-    }
+            }
 
+            break;
+    }
     await connection.CloseAsync();
 }
 
